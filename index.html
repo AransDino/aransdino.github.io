@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ayoze Benítez · AransDino</title>
+<meta name="description" content="Ayoze Benítez (AransDino) — cacharreo con IA, Python y automatizaciones desde Tías, Lanzarote.">
+<link rel="icon" href="https://github.com/AransDino.png" type="image/png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;600;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0b0a0f;
+    --bg2: #14101a;
+    --lava1: #ff6b35;
+    --lava2: #ff2e63;
+    --lava3: #ffb347;
+    --ocean: #4ecdc4;
+    --text: #e8e4de;
+    --muted: #9a938c;
+    --card: rgba(255, 255, 255, 0.035);
+    --border: rgba(255, 255, 255, 0.09);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Sora', sans-serif;
+    overflow-x: hidden;
+    line-height: 1.6;
+  }
+  ::selection { background: var(--lava2); color: #fff; }
+
+  /* ── canvas de ascuas ── */
+  #embers {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+  }
+
+  .wrap { position: relative; z-index: 1; max-width: 1050px; margin: 0 auto; padding: 0 24px; }
+
+  /* ── HERO ── */
+  .hero {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    position: relative;
+  }
+  .hero::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(ellipse 80% 55% at 50% 115%, rgba(255, 46, 99, 0.22), transparent 65%),
+      radial-gradient(ellipse 60% 40% at 85% 110%, rgba(255, 107, 53, 0.20), transparent 60%);
+    pointer-events: none;
+  }
+  .avatar {
+    width: 116px; height: 116px;
+    border-radius: 50%;
+    border: 3px solid transparent;
+    background:
+      linear-gradient(var(--bg), var(--bg)) padding-box,
+      linear-gradient(135deg, var(--lava3), var(--lava2), var(--ocean)) border-box;
+    margin-bottom: 28px;
+    animation: floaty 5s ease-in-out infinite;
+  }
+  @keyframes floaty {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-9px); }
+  }
+  .hero h1 {
+    font-size: clamp(2.6rem, 7vw, 4.6rem);
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    line-height: 1.08;
+  }
+  .hero h1 .grad {
+    background: linear-gradient(90deg, var(--lava3), var(--lava1) 35%, var(--lava2) 70%, #c62368);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .alias {
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--ocean);
+    font-size: 1.05rem;
+    margin-top: 10px;
+  }
+  .alias::before { content: '~/'; opacity: .5; }
+  .tagline {
+    margin-top: 22px;
+    font-size: 1.15rem;
+    color: var(--muted);
+    max-width: 560px;
+  }
+  .tagline b { color: var(--text); font-weight: 600; }
+  #typed {
+    display: block;
+    margin-top: 18px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 1rem;
+    color: var(--lava3);
+    min-height: 1.6em;
+  }
+  #typed::after {
+    content: '▌';
+    animation: blink 1s steps(1) infinite;
+    color: var(--lava2);
+  }
+  @keyframes blink { 50% { opacity: 0; } }
+
+  .hero-links { margin-top: 36px; display: flex; gap: 14px; flex-wrap: wrap; }
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    padding: 12px 22px;
+    border-radius: 12px;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 0.95rem;
+    transition: transform .2s, box-shadow .2s, background .2s;
+    border: 1px solid var(--border);
+    color: var(--text);
+    background: var(--card);
+  }
+  .btn:hover { transform: translateY(-3px); background: rgba(255,255,255,.07); }
+  .btn.primary {
+    background: linear-gradient(90deg, var(--lava1), var(--lava2));
+    border: none;
+    color: #fff;
+  }
+  .btn.primary:hover { box-shadow: 0 8px 30px rgba(255, 46, 99, 0.35); }
+  .btn svg { width: 18px; height: 18px; fill: currentColor; }
+
+  .scroll-hint {
+    position: absolute;
+    bottom: 30px; left: 50%;
+    transform: translateX(-50%);
+    color: var(--muted);
+    font-size: 1.5rem;
+    animation: bob 1.8s ease-in-out infinite;
+    text-decoration: none;
+  }
+  @keyframes bob { 0%,100% { transform: translate(-50%, 0); } 50% { transform: translate(-50%, 8px); } }
+
+  /* ── secciones ── */
+  section { padding: 90px 0; }
+  .sec-title {
+    font-size: 1.9rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .sec-title .emoji { font-size: 1.6rem; }
+  .sec-sub { color: var(--muted); margin-bottom: 42px; max-width: 620px; }
+
+  /* ── stats ── */
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 16px;
+  }
+  .stat {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 26px 20px;
+    text-align: center;
+    transition: transform .25s, border-color .25s;
+  }
+  .stat:hover { transform: translateY(-5px); border-color: rgba(255, 107, 53, 0.45); }
+  .stat .num {
+    font-size: 2.3rem;
+    font-weight: 800;
+    font-family: 'JetBrains Mono', monospace;
+    background: linear-gradient(120deg, var(--lava3), var(--lava2));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .stat .lbl { color: var(--muted); font-size: 0.85rem; margin-top: 6px; }
+
+  /* ── proyectos ── */
+  .repos {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 18px;
+  }
+  .repo {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 24px;
+    text-decoration: none;
+    color: var(--text);
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    transition: transform .25s, border-color .25s, box-shadow .25s;
+    position: relative;
+    overflow: hidden;
+  }
+  .repo::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, var(--lava3), var(--lava2), var(--ocean));
+    opacity: 0;
+    transition: opacity .25s;
+  }
+  .repo:hover { transform: translateY(-6px); border-color: rgba(255,255,255,.18); box-shadow: 0 14px 40px rgba(0,0,0,.45); }
+  .repo:hover::before { opacity: 1; }
+  .repo h3 {
+    font-size: 1.02rem;
+    font-weight: 700;
+    font-family: 'JetBrains Mono', monospace;
+    word-break: break-word;
+  }
+  .repo p { color: var(--muted); font-size: 0.88rem; flex: 1; }
+  .repo .meta {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    font-size: 0.8rem;
+    color: var(--muted);
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .dot { width: 11px; height: 11px; border-radius: 50%; display: inline-block; margin-right: 5px; vertical-align: -1px; }
+  .repos-loading { color: var(--muted); font-family: 'JetBrains Mono', monospace; }
+
+  /* ── stack ── */
+  .stack { display: flex; flex-wrap: wrap; gap: 12px; }
+  .chip {
+    padding: 10px 18px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: var(--card);
+    font-size: 0.9rem;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    transition: transform .2s, border-color .2s;
+    cursor: default;
+  }
+  .chip:hover { transform: scale(1.07) rotate(-1.5deg); border-color: rgba(78, 205, 196, 0.5); }
+
+  /* ── isla ── */
+  .isla {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 36px;
+    display: flex;
+    gap: 28px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .isla .volcan { font-size: 4rem; animation: floaty 4s ease-in-out infinite; }
+  .isla p { color: var(--muted); max-width: 640px; }
+  .isla p b { color: var(--text); }
+  .isla .coords {
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--ocean);
+    font-size: 0.85rem;
+    margin-top: 8px;
+    display: block;
+  }
+
+  footer {
+    border-top: 1px solid var(--border);
+    padding: 40px 0 50px;
+    text-align: center;
+    color: var(--muted);
+    font-size: 0.85rem;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  footer a { color: var(--ocean); text-decoration: none; }
+  footer .lava-line {
+    height: 3px;
+    max-width: 220px;
+    margin: 0 auto 28px;
+    border-radius: 3px;
+    background: linear-gradient(90deg, transparent, var(--lava1), var(--lava2), transparent);
+    animation: pulse 3s ease-in-out infinite;
+  }
+  @keyframes pulse { 0%,100% { opacity: .5; } 50% { opacity: 1; } }
+
+  .reveal { opacity: 0; transform: translateY(28px); transition: opacity .7s, transform .7s; }
+  .reveal.on { opacity: 1; transform: none; }
+
+  @media (max-width: 600px) {
+    section { padding: 60px 0; }
+    .isla { padding: 26px; }
+  }
+</style>
+</head>
+<body>
+
+<canvas id="embers"></canvas>
+
+<div class="wrap">
+
+  <!-- HERO -->
+  <header class="hero">
+    <img class="avatar" src="https://github.com/AransDino.png" alt="Avatar de AransDino">
+    <h1>Hola, soy <span class="grad">Ayoze</span> 🌋</h1>
+    <div class="alias">AransDino</div>
+    <p class="tagline">
+      Cacharreo con <b>IA local</b>, <b>Python</b> y automatizaciones varias
+      desde una isla volcánica en medio del Atlántico.
+    </p>
+    <span id="typed"></span>
+    <div class="hero-links">
+      <a class="btn primary" href="https://github.com/AransDino" target="_blank" rel="noopener">
+        <svg viewBox="0 0 16 16"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
+        Mi GitHub
+      </a>
+      <a class="btn" href="#proyectos">Proyectos ↓</a>
+    </div>
+    <a class="scroll-hint" href="#isla" aria-label="Bajar">⌄</a>
+  </header>
+
+  <!-- LA ISLA -->
+  <section id="isla" class="reveal">
+    <div class="isla">
+      <div class="volcan">🏝️</div>
+      <div>
+        <p>
+          Escribo código desde <b>Tías, Lanzarote</b> — Islas Canarias. Aquí el suelo es de lava,
+          el wifi llega igual, y entre volcán y océano se piensa bastante bien.
+          No estoy aquí para venderte nada: esto es mi rincón de <b>experimentos y cacharreo</b>.
+        </p>
+        <span class="coords">📍 28.9625° N, 13.6459° W · GMT+0 (hora canaria, siempre una menos)</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- STATS -->
+  <section id="stats" class="reveal">
+    <h2 class="sec-title"><span class="emoji">📊</span> En números</h2>
+    <p class="sec-sub">Datos en vivo, directos de la API de GitHub.</p>
+    <div class="stats">
+      <div class="stat"><div class="num" id="st-repos">–</div><div class="lbl">repos públicos</div></div>
+      <div class="stat"><div class="num" id="st-years">–</div><div class="lbl">años en GitHub</div></div>
+      <div class="stat"><div class="num" id="st-stars">–</div><div class="lbl">estrellas ⭐</div></div>
+      <div class="stat"><div class="num" id="st-langs">–</div><div class="lbl">lenguajes usados</div></div>
+    </div>
+  </section>
+
+  <!-- PROYECTOS -->
+  <section id="proyectos" class="reveal">
+    <h2 class="sec-title"><span class="emoji">🧪</span> Últimos experimentos</h2>
+    <p class="sec-sub">Lo más reciente del laboratorio — se actualiza solo cada vez que subo algo.</p>
+    <div class="repos" id="repos">
+      <div class="repos-loading">cargando repos desde la API de GitHub…</div>
+    </div>
+  </section>
+
+  <!-- STACK -->
+  <section id="stack" class="reveal">
+    <h2 class="sec-title"><span class="emoji">🧰</span> Con lo que cacharreo</h2>
+    <p class="sec-sub">Las herramientas que más tocan mis teclas últimamente.</p>
+    <div class="stack">
+      <span class="chip">🐍 Python</span>
+      <span class="chip">🤖 IA local · Ollama</span>
+      <span class="chip">🗣️ Whisper</span>
+      <span class="chip">📚 RAG · ChromaDB</span>
+      <span class="chip">🎨 Flux · Replicate</span>
+      <span class="chip">⚡ CUDA · RTX 5090</span>
+      <span class="chip">💻 PowerShell</span>
+      <span class="chip">🌐 HTML/CSS/JS</span>
+      <span class="chip">📓 Jupyter</span>
+      <span class="chip">🔧 Automatización</span>
+    </div>
+  </section>
+
+  <footer>
+    <div class="lava-line"></div>
+    <p>Hecho con 🌋 desde Lanzarote · <a href="https://github.com/AransDino/aransdino.github.io" target="_blank" rel="noopener">ver el código de esta página</a></p>
+    <p style="margin-top:8px; opacity:.6;">© <span id="year"></span> Ayoze Benítez — AransDino</p>
+  </footer>
+
+</div>
+
+<script>
+/* ── ascuas volcánicas ── */
+const cv = document.getElementById('embers');
+const ctx = cv.getContext('2d');
+let W, H, embers = [];
+function resize() {
+  W = cv.width = innerWidth;
+  H = cv.height = innerHeight;
+}
+addEventListener('resize', resize);
+resize();
+const N = Math.min(70, Math.floor(W / 18));
+function newEmber(fromBottom) {
+  return {
+    x: Math.random() * W,
+    y: fromBottom ? H + 10 : Math.random() * H,
+    r: 0.6 + Math.random() * 2.2,
+    vy: 0.25 + Math.random() * 0.8,
+    vx: (Math.random() - 0.5) * 0.3,
+    hue: 10 + Math.random() * 35,
+    a: 0.15 + Math.random() * 0.5,
+    tw: Math.random() * Math.PI * 2
+  };
+}
+for (let i = 0; i < N; i++) embers.push(newEmber(false));
+function tick(t) {
+  ctx.clearRect(0, 0, W, H);
+  for (const e of embers) {
+    e.y -= e.vy;
+    e.x += e.vx + Math.sin(t / 900 + e.tw) * 0.18;
+    if (e.y < -12) Object.assign(e, newEmber(true));
+    const flicker = 0.7 + 0.3 * Math.sin(t / 180 + e.tw);
+    ctx.beginPath();
+    ctx.arc(e.x, e.y, e.r, 0, Math.PI * 2);
+    ctx.fillStyle = `hsla(${e.hue}, 100%, 60%, ${e.a * flicker})`;
+    ctx.shadowColor = `hsla(${e.hue}, 100%, 55%, .8)`;
+    ctx.shadowBlur = 8;
+    ctx.fill();
+  }
+  ctx.shadowBlur = 0;
+  requestAnimationFrame(tick);
+}
+requestAnimationFrame(tick);
+
+/* ── efecto máquina de escribir ── */
+const phrases = [
+  'transcribiendo vídeos con Whisper + CUDA…',
+  'montando un RAG 100% local con Ollama…',
+  'generando imágenes con Flux Pro…',
+  'automatizando cosas que nadie pidió…',
+  'buscando facturas de agua con Python 🚿…',
+  'aprendiendo algo nuevo, seguramente.'
+];
+const typedEl = document.getElementById('typed');
+let pi = 0, ci = 0, deleting = false;
+function typeLoop() {
+  const p = phrases[pi];
+  typedEl.textContent = p.slice(0, ci);
+  let delay = deleting ? 26 : 55;
+  if (!deleting && ci === p.length) { delay = 2100; deleting = true; }
+  else if (deleting && ci === 0) { deleting = false; pi = (pi + 1) % phrases.length; delay = 350; }
+  else ci += deleting ? -1 : 1;
+  setTimeout(typeLoop, delay);
+}
+typeLoop();
+
+/* ── reveal on scroll ── */
+const io = new IntersectionObserver(es => es.forEach(e => {
+  if (e.isIntersecting) { e.target.classList.add('on'); io.unobserve(e.target); }
+}), { threshold: 0.12 });
+document.querySelectorAll('.reveal').forEach(el => io.observe(el));
+
+/* ── datos en vivo de GitHub ── */
+const LANG_COLORS = {
+  Python: '#3572A5', HTML: '#e34c26', JavaScript: '#f1e05a', TypeScript: '#3178c6',
+  'Jupyter Notebook': '#DA5B0B', PowerShell: '#012456', Dart: '#00B4AB',
+  CSS: '#563d7c', Shell: '#89e051', 'C#': '#178600', VBA: '#867db1'
+};
+const fmtDate = iso => new Date(iso).toLocaleDateString('es-ES', { month: 'short', year: 'numeric' });
+
+fetch('https://api.github.com/users/AransDino')
+  .then(r => r.json())
+  .then(u => {
+    document.getElementById('st-repos').textContent = u.public_repos ?? '?';
+    const years = Math.floor((Date.now() - new Date(u.created_at)) / 3.156e10);
+    document.getElementById('st-years').textContent = years;
+  }).catch(() => {});
+
+fetch('https://api.github.com/users/AransDino/repos?per_page=100&sort=updated')
+  .then(r => r.json())
+  .then(repos => {
+    if (!Array.isArray(repos)) throw new Error('rate limit');
+    const own = repos.filter(r => !r.fork);
+    document.getElementById('st-stars').textContent = own.reduce((s, r) => s + r.stargazers_count, 0);
+    document.getElementById('st-langs').textContent = new Set(own.map(r => r.language).filter(Boolean)).size;
+    const box = document.getElementById('repos');
+    box.innerHTML = '';
+    own.slice(0, 9).forEach(r => {
+      const a = document.createElement('a');
+      a.className = 'repo';
+      a.href = r.html_url;
+      a.target = '_blank';
+      a.rel = 'noopener';
+      const color = LANG_COLORS[r.language] || '#8b8b8b';
+      a.innerHTML = `
+        <h3>📦 ${r.name}</h3>
+        <p>${r.description ? r.description : 'Sin descripción… pero con misterio.'}</p>
+        <div class="meta">
+          ${r.language ? `<span><span class="dot" style="background:${color}"></span>${r.language}</span>` : ''}
+          ${r.stargazers_count ? `<span>⭐ ${r.stargazers_count}</span>` : ''}
+          <span>↻ ${fmtDate(r.pushed_at)}</span>
+        </div>`;
+      box.appendChild(a);
+    });
+  })
+  .catch(() => {
+    document.getElementById('repos').innerHTML =
+      '<div class="repos-loading">La API de GitHub está descansando (rate limit). Vuelve en un rato 🌋</div>';
+  });
+
+document.getElementById('year').textContent = new Date().getFullYear();
+</script>
+
+</body>
+</html>
