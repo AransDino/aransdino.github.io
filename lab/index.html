@@ -1,0 +1,733 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>El Lab ⚡ AransDino</title>
+<meta name="description" content="Del bit al átomo: FreeCAD, impresión 3D, CNC, ESP32 e IA local — las aficiones maker de Ayoze contadas con scroll.">
+<meta property="og:title" content="El Lab ⚡ AransDino">
+<meta property="og:description" content="Del bit al átomo. FreeCAD · impresión 3D · CNC · electrónica · IA local, contado con scroll.">
+<meta property="og:image" content="https://github.com/AransDino.png">
+<link rel="icon" href="https://github.com/AransDino.png" type="image/png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;600;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0b0a0f;
+    --text: #e8e4de;
+    --muted: #9a938c;
+    --teal: #4ecdc4;
+    --lava: #ff6b35;
+    --pink: #ff2e63;
+    --card: rgba(12, 11, 18, 0.82);
+    --border: rgba(255, 255, 255, 0.1);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Sora', sans-serif;
+    line-height: 1.6;
+    overflow-x: hidden;
+  }
+  ::selection { background: var(--pink); color: #fff; }
+
+  /* barra de progreso arcoíris (guiño WLED) */
+  #barra {
+    position: fixed;
+    top: 0; left: 0;
+    height: 3px;
+    width: 0%;
+    z-index: 50;
+    background: linear-gradient(90deg, #ff0000, #ff8800, #ffee00, #00ff66, #00ccff, #7744ff, #ff44cc);
+    box-shadow: 0 0 12px rgba(255, 255, 255, 0.25);
+  }
+
+  /* ── intro ── */
+  .intro {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 24px;
+    position: relative;
+    background:
+      radial-gradient(ellipse 70% 45% at 50% 110%, rgba(78, 205, 196, .13), transparent 65%),
+      radial-gradient(ellipse 50% 35% at 80% -10%, rgba(255, 46, 99, .10), transparent 60%);
+  }
+  .intro .mini {
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--teal);
+    font-size: .9rem;
+    margin-bottom: 18px;
+  }
+  .intro h1 {
+    font-size: clamp(2.6rem, 8vw, 5.2rem);
+    font-weight: 800;
+    letter-spacing: -.03em;
+    line-height: 1.06;
+  }
+  .intro h1 .g1 {
+    background: linear-gradient(90deg, var(--teal), #00ccff);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .intro h1 .g2 {
+    background: linear-gradient(90deg, #ffb347, var(--lava), var(--pink));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .intro p { color: var(--muted); margin-top: 22px; max-width: 560px; }
+  .intro .flecha {
+    position: absolute;
+    bottom: 28px;
+    color: var(--muted);
+    font-size: 1.5rem;
+    animation: bob 1.8s ease-in-out infinite;
+  }
+  @keyframes bob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(9px); } }
+
+  /* ── secuencia con canvas sticky ── */
+  #seq { position: relative; height: 720vh; }
+  #stage {
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    width: 100%;
+    overflow: hidden;
+  }
+  #lienzo { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+
+  /* tarjetas de texto que atraviesan la escena */
+  .paso {
+    position: absolute;
+    width: min(430px, 88vw);
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    padding: 26px 28px;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    z-index: 5;
+    opacity: 0;
+    transform: translateY(40px);
+    transition: opacity .7s ease, transform .7s ease;
+  }
+  .paso.on { opacity: 1; transform: none; }
+  .paso .num {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: .75rem;
+    color: var(--teal);
+    letter-spacing: .12em;
+  }
+  .paso h2 { font-size: 1.5rem; font-weight: 800; margin: 8px 0 10px; letter-spacing: -.01em; }
+  .paso p { color: var(--muted); font-size: .93rem; }
+  .paso p b { color: var(--text); font-weight: 600; }
+  .paso code {
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--lava);
+    font-size: .85em;
+    background: rgba(255, 107, 53, .1);
+    padding: 2px 6px;
+    border-radius: 6px;
+  }
+  .izq { left: max(4vw, calc(50vw - 620px)); }
+  .der { right: max(4vw, calc(50vw - 620px)); }
+  @media (max-width: 760px) {
+    .izq, .der { left: 50%; right: auto; transform: translate(-50%, 40px); }
+    .paso.on { transform: translate(-50%, 0); }
+  }
+
+  /* ── final ── */
+  .final {
+    min-height: 90vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 80px 24px;
+    background: radial-gradient(ellipse 70% 50% at 50% -10%, rgba(255, 107, 53, .10), transparent 60%);
+  }
+  .final h2 { font-size: clamp(1.8rem, 5vw, 3rem); font-weight: 800; letter-spacing: -.02em; max-width: 760px; }
+  .final h2 span {
+    background: linear-gradient(90deg, var(--teal), #00ccff);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .final > p { color: var(--muted); margin-top: 18px; max-width: 560px; }
+  .enlaces { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; margin-top: 38px; }
+  .enlaces a {
+    padding: 11px 20px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: rgba(255, 255, 255, .04);
+    color: var(--text);
+    text-decoration: none;
+    font-size: .9rem;
+    font-weight: 600;
+    transition: transform .2s, border-color .2s;
+  }
+  .enlaces a:hover { transform: translateY(-3px); border-color: var(--teal); }
+  .volver {
+    margin-top: 56px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: .85rem;
+  }
+  .volver a { color: var(--teal); text-decoration: none; }
+  .credito { margin-top: 14px; color: var(--muted); font-size: .78rem; font-family: 'JetBrains Mono', monospace; opacity: .7; }
+</style>
+</head>
+<body>
+
+<div id="barra"></div>
+
+<header class="intro">
+  <div class="mini">aransdino.github.io/lab — scroll experiment</div>
+  <h1>Del <span class="g1">bit</span><br>al <span class="g2">átomo</span></h1>
+  <p>FreeCAD · impresión 3D · CNC · ESP32 · IA local.<br>
+  Las cosas que me hacen perder el sueño, contadas con scroll. Baja despacio.</p>
+  <div class="flecha">⌄</div>
+</header>
+
+<div id="seq">
+  <div id="stage"><canvas id="lienzo"></canvas></div>
+
+  <div class="paso izq" style="top: 5%;">
+    <div class="num">01 / LA IDEA</div>
+    <h2>Todo empieza en FreeCAD</h2>
+    <p>Paramétrico, open source y cabezón como yo. Un boceto, cuatro cotas bien puestas,
+    y esa pieza que <b>no existe en ninguna tienda</b> empieza a existir aquí.</p>
+  </div>
+
+  <div class="paso der" style="top: 19%;">
+    <div class="num">02 / EXTRUIR</div>
+    <h2>De 2D a 3D con un Pad</h2>
+    <p>El boceto se levanta y ya es un sólido. ¿Que mañana cambia una medida?
+    Tocas la cota y <b>todo se recalcula solo</b>. La magia del diseño paramétrico.</p>
+  </div>
+
+  <div class="paso izq" style="top: 37%;">
+    <div class="num">03 / IMPRESIÓN 3D</div>
+    <h2>Capa a capa, a 0.2 mm</h2>
+    <p>PLA fundido a <code>210 °C</code> dibujando la pieza en el aire. El ruidito
+    hipnótico de la impresora trabajando a las 3 de la mañana es <b>mi ASMR</b>.</p>
+  </div>
+
+  <div class="paso der" style="top: 56%;">
+    <div class="num">04 / CNC</div>
+    <h2>Cuando el plástico se queda corto</h2>
+    <p>Madera, aluminio y una fresa girando a <code>24.000 rpm</code>. Virutas por
+    todas partes, olor a serrín, y una pieza que <b>ya no se rompe</b>.</p>
+  </div>
+
+  <div class="paso izq" style="top: 76%;">
+    <div class="num">05 / COBRA VIDA</div>
+    <h2>Un ESP32 y a correr</h2>
+    <p><code>WLED</code> para las luces, <code>Zigbee2MQTT</code> para los sensores,
+    <b>Home Assistant</b> de cerebro y la IA corriendo en local. El taller entero, conectado.</p>
+  </div>
+</div>
+
+<section class="final">
+  <h2>No soy una empresa.<br><span>Soy un tío con un taller.</span></h2>
+  <p>Diseño, imprimo, corto, sueldo y automatizo. Esta página también está fabricada
+  a mano: un canvas dibujando cada frame al ritmo de tu scroll, sin un solo JPG.</p>
+  <div class="enlaces">
+    <a href="https://www.freecad.org/" target="_blank" rel="noopener">📐 FreeCAD</a>
+    <a href="https://kno.wled.ge/" target="_blank" rel="noopener">💡 WLED</a>
+    <a href="https://www.home-assistant.io/" target="_blank" rel="noopener">🏠 Home Assistant</a>
+    <a href="https://www.zigbee2mqtt.io/" target="_blank" rel="noopener">📶 Zigbee2MQTT</a>
+    <a href="https://ollama.com/" target="_blank" rel="noopener">🧠 Ollama</a>
+  </div>
+  <div class="volver"><a href="/">← volver a aransdino.github.io</a></div>
+  <div class="credito">hecho por Claude 🤖 para el lab de Ayoze · Lanzarote 🌋</div>
+</section>
+
+<script>
+/* ═══════════════ motor de scroll-scrubbing ═══════════════
+   Misma arquitectura que una landing Apple con secuencia de
+   frames JPG (canvas sticky + progreso de scroll + rAF),
+   pero draw(p) renderiza cada frame al vuelo.              */
+const cv = document.getElementById('lienzo');
+const ctx = cv.getContext('2d');
+const seq = document.getElementById('seq');
+const barra = document.getElementById('barra');
+let W, H, dpr;
+
+function resize() {
+  dpr = Math.min(devicePixelRatio || 1, 2);
+  W = cv.clientWidth;
+  H = cv.clientHeight;
+  cv.width = W * dpr;
+  cv.height = H * dpr;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+addEventListener('resize', resize);
+resize();
+
+function progresoScroll() {
+  const r = seq.getBoundingClientRect();
+  const total = r.height - innerHeight;
+  return Math.max(0, Math.min(1, -r.top / total));
+}
+let target = progresoScroll(), cur = target;
+addEventListener('scroll', () => { target = progresoScroll(); }, { passive: true });
+
+/* helpers */
+const clamp01 = x => Math.max(0, Math.min(1, x));
+const seg = (p, a, b) => clamp01((p - a) / (b - a));
+const ease = x => x < .5 ? 4*x*x*x : 1 - Math.pow(-2*x + 2, 3) / 2;
+const lerp = (a, b, e) => a + (b - a) * e;
+const fade = (p, i0, i1, o0, o1) => ease(seg(p, i0, i1)) * (1 - ease(seg(p, o0, o1)));
+
+/* polilínea parcial (efecto "se está dibujando") */
+function pathParcial(pts, e) {
+  if (e <= 0) return;
+  let lens = [], total = 0;
+  for (let i = 1; i < pts.length; i++) {
+    const l = Math.hypot(pts[i][0]-pts[i-1][0], pts[i][1]-pts[i-1][1]);
+    lens.push(l); total += l;
+  }
+  let resto = total * e;
+  ctx.beginPath();
+  ctx.moveTo(pts[0][0], pts[0][1]);
+  for (let i = 1; i < pts.length; i++) {
+    if (resto >= lens[i-1]) { ctx.lineTo(pts[i][0], pts[i][1]); resto -= lens[i-1]; }
+    else {
+      const f = resto / lens[i-1];
+      ctx.lineTo(lerp(pts[i-1][0], pts[i][0], f), lerp(pts[i-1][1], pts[i][1], f));
+      break;
+    }
+  }
+  ctx.stroke();
+}
+/* punto final de una polilínea parcial (para la fresa CNC) */
+function puntoEn(pts, e) {
+  let lens = [], total = 0;
+  for (let i = 1; i < pts.length; i++) {
+    const l = Math.hypot(pts[i][0]-pts[i-1][0], pts[i][1]-pts[i-1][1]);
+    lens.push(l); total += l;
+  }
+  let resto = total * clamp01(e);
+  for (let i = 1; i < pts.length; i++) {
+    if (resto >= lens[i-1]) resto -= lens[i-1];
+    else {
+      const f = resto / lens[i-1];
+      return [lerp(pts[i-1][0], pts[i][0], f), lerp(pts[i-1][1], pts[i][1], f)];
+    }
+  }
+  return pts[pts.length - 1];
+}
+function rrect(x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x+r, y);
+  ctx.arcTo(x+w, y, x+w, y+h, r);
+  ctx.arcTo(x+w, y+h, x, y+h, r);
+  ctx.arcTo(x, y+h, x, y, r);
+  ctx.arcTo(x, y, x+w, y, r);
+  ctx.closePath();
+}
+
+/* ── geometría de la historia ── */
+/* boceto FreeCAD: soporte en L con dos taladros */
+const PERFIL = [[-150,90],[150,90],[150,25],[-15,25],[-15,-100],[-150,-100],[-150,90]];
+/* engranaje para el CNC */
+function engranaje(cx, cy, rOut, rIn, dientes) {
+  const pts = [], paso = (Math.PI * 2) / dientes, q = paso / 4;
+  for (let i = 0; i < dientes; i++) {
+    const a = i * paso;
+    pts.push([cx + rOut * Math.cos(a),       cy + rOut * Math.sin(a)]);
+    pts.push([cx + rOut * Math.cos(a + q),   cy + rOut * Math.sin(a + q)]);
+    pts.push([cx + rIn  * Math.cos(a + 2*q), cy + rIn  * Math.sin(a + 2*q)]);
+    pts.push([cx + rIn  * Math.cos(a + 3*q), cy + rIn  * Math.sin(a + 3*q)]);
+  }
+  pts.push(pts[0].slice());
+  return pts;
+}
+const GEAR = engranaje(0, 0, 130, 102, 9);
+/* capas de la impresión (perfil frontal de la L) */
+const CAPAS = 16, ALTO_CAPA = 20, CAMA_Y = 190;
+function capaGeom(i) {
+  return i < 5 ? { x: -150, w: 300 } : { x: -150, w: 135 };  /* base ancha, columna izquierda */
+}
+/* nodos del taller conectado */
+const NODOS = [
+  [-470,-250,'🖨️','impresora 3d'],
+  [-520,160,'⚙️','cnc'],
+  [470,-250,'💡','wled'],
+  [520,170,'🏠','home assistant'],
+  [0,-400,'🧠','ia local'],
+];
+/* proyección isométrica para la extrusión */
+const iso = (x, y, z) => [0.866 * (x - y * 0.4), 0.5 * (x * 0.35 + y) - z];
+
+function draw(p, t) {
+  ctx.clearRect(0, 0, W, H);
+
+  const s = Math.min(W / 1450, H / 950) * 1.22;
+  ctx.save();
+  ctx.translate(W / 2, H / 2);
+  ctx.scale(s, s);
+
+  /* ═══ ESCENA 1: boceto FreeCAD + extrusión ═══ */
+  const a1 = fade(p, 0.00, 0.02, 0.28, 0.35);
+  if (a1 > 0) {
+    const eGrid   = ease(seg(p, 0.00, 0.07));
+    const eSketch = ease(seg(p, 0.03, 0.13));
+    const eDim    = ease(seg(p, 0.11, 0.16));
+    const eExtr   = ease(seg(p, 0.17, 0.28));
+    ctx.save();
+    ctx.globalAlpha = a1;
+
+    /* rejilla estilo CAD */
+    if (eGrid > 0) {
+      ctx.strokeStyle = `rgba(78,205,196,${0.10 * eGrid * (1 - eExtr)})`;
+      ctx.lineWidth = 1;
+      for (let x = -600; x <= 600; x += 60) { ctx.beginPath(); ctx.moveTo(x, -420); ctx.lineTo(x, 420); ctx.stroke(); }
+      for (let y = -420; y <= 420; y += 60) { ctx.beginPath(); ctx.moveTo(-600, y); ctx.lineTo(600, y); ctx.stroke(); }
+      /* ejes origen */
+      ctx.strokeStyle = `rgba(255,107,53,${0.5 * eGrid * (1 - eExtr)})`;
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(-40, 0); ctx.lineTo(40, 0); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(0, -40); ctx.lineTo(0, 40); ctx.stroke();
+    }
+
+    /* del boceto plano al sólido isométrico */
+    const h = 90 * eExtr;  /* altura de extrusión */
+    const abajo = PERFIL.map(pt => {
+      const [ix, iy] = iso(pt[0], pt[1], 0);
+      return [lerp(pt[0], ix, eExtr), lerp(pt[1], iy + 40, eExtr)];
+    });
+    const arriba = PERFIL.map(pt => {
+      const [ix, iy] = iso(pt[0], pt[1], h);
+      return [lerp(pt[0], ix, eExtr), lerp(pt[1], iy + 40, eExtr)];
+    });
+
+    /* cara superior rellena al extruir */
+    if (eExtr > 0.05) {
+      ctx.beginPath();
+      arriba.forEach((pt, i) => i ? ctx.lineTo(pt[0], pt[1]) : ctx.moveTo(pt[0], pt[1]));
+      ctx.closePath();
+      ctx.fillStyle = `rgba(78,205,196,${0.16 * eExtr})`;
+      ctx.fill();
+    }
+    /* aristas verticales */
+    if (eExtr > 0) {
+      ctx.strokeStyle = `rgba(232,228,222,${0.55})`;
+      ctx.lineWidth = 2;
+      for (let i = 0; i < PERFIL.length - 1; i++) {
+        ctx.beginPath();
+        ctx.moveTo(abajo[i][0], abajo[i][1]);
+        ctx.lineTo(arriba[i][0], arriba[i][1]);
+        ctx.stroke();
+      }
+    }
+    /* contornos */
+    ctx.strokeStyle = 'rgba(232,228,222,0.9)';
+    ctx.lineWidth = 3;
+    ctx.lineJoin = 'round';
+    ctx.shadowColor = 'rgba(78,205,196,0.7)';
+    ctx.shadowBlur = 8;
+    pathParcial(abajo, eSketch);
+    if (eExtr > 0) pathParcial(arriba, 1);
+    ctx.shadowBlur = 0;
+
+    /* taladros del boceto */
+    if (eSketch > 0.7 && eExtr < 0.9) {
+      const eC = seg(eSketch, 0.7, 1) * (1 - eExtr);
+      ctx.strokeStyle = `rgba(232,228,222,${0.9 * eC})`;
+      ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.arc(-85, -40, 24 * eC, 0, Math.PI * 2); ctx.stroke();
+      ctx.beginPath(); ctx.arc(70, 57, 18 * eC, 0, Math.PI * 2); ctx.stroke();
+    }
+
+    /* cotas (con la respuesta a todo) */
+    if (eDim > 0 && eExtr < 0.5) {
+      const aD = eDim * (1 - seg(eExtr, 0, 0.5));
+      ctx.strokeStyle = `rgba(255,179,71,${0.8 * aD})`;
+      ctx.fillStyle = `rgba(255,179,71,${aD})`;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(-150, 120); ctx.lineTo(150, 120); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(-150, 112); ctx.lineTo(-150, 128); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(150, 112); ctx.lineTo(150, 128); ctx.stroke();
+      ctx.font = '700 20px "JetBrains Mono", monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('42.0 mm', 0, 148);
+      ctx.save();
+      ctx.translate(-180, -5);
+      ctx.rotate(-Math.PI / 2);
+      ctx.beginPath(); ctx.moveTo(-95, 0); ctx.lineTo(95, 0); ctx.stroke();
+      ctx.fillText('27.0', 0, -10);
+      ctx.restore();
+    }
+    /* etiqueta de la escena */
+    ctx.fillStyle = `rgba(154,147,140,${0.8 * a1})`;
+    ctx.font = '400 15px "JetBrains Mono", monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(eExtr > 0.3 ? 'Part Design → Pad' : 'Sketcher · soporte_v3_FINAL_estaSI.FCStd', 0, 330);
+    ctx.restore();
+  }
+
+  /* ═══ ESCENA 2: impresión 3D capa a capa ═══ */
+  const a2 = fade(p, 0.28, 0.35, 0.52, 0.59);
+  if (a2 > 0) {
+    const eFrame  = ease(seg(p, 0.29, 0.36));
+    const eLayers = seg(p, 0.35, 0.53);
+    ctx.save();
+    ctx.globalAlpha = a2;
+
+    /* estructura de la impresora */
+    ctx.strokeStyle = 'rgba(232,228,222,0.35)';
+    ctx.lineWidth = 10;
+    ctx.lineCap = 'round';
+    pathParcial([[-300, CAMA_Y + 40], [-300, -330]], eFrame);
+    pathParcial([[300, CAMA_Y + 40], [300, -330]], eFrame);
+    pathParcial([[-300, -330], [300, -330]], seg(eFrame, 0.6, 1));
+    /* cama caliente */
+    if (eFrame > 0.4) {
+      ctx.globalAlpha = a2 * seg(eFrame, 0.4, 1);
+      const gb = ctx.createLinearGradient(0, CAMA_Y, 0, CAMA_Y + 26);
+      gb.addColorStop(0, '#2c323e'); gb.addColorStop(1, '#181c26');
+      rrect(-270, CAMA_Y, 540, 26, 6);
+      ctx.fillStyle = gb; ctx.fill();
+      ctx.globalAlpha = a2;
+    }
+
+    /* capas impresas */
+    const capasHechas = eLayers * CAPAS;
+    for (let i = 0; i < Math.ceil(capasHechas); i++) {
+      const g = capaGeom(i);
+      const frac = clamp01(capasHechas - i);        /* la capa activa crece */
+      const y = CAMA_Y - (i + 1) * ALTO_CAPA;
+      const activa = i === Math.floor(capasHechas) && eLayers < 1;
+      ctx.fillStyle = activa ? 'rgba(255,140,80,0.95)' : 'rgba(78,205,196,0.75)';
+      if (activa) { ctx.shadowColor = 'rgba(255,140,80,0.9)'; ctx.shadowBlur = 14; }
+      rrect(g.x, y, g.w * (activa ? frac : 1), ALTO_CAPA - 3, 4);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+    }
+
+    /* cabezal siguiendo la capa activa */
+    if (eLayers > 0 && eLayers < 1) {
+      const li = Math.floor(capasHechas);
+      const g = capaGeom(li);
+      const frac = clamp01(capasHechas - li);
+      const hx = g.x + g.w * frac;
+      const hy = CAMA_Y - (li + 1) * ALTO_CAPA;
+      /* barra del eje X */
+      ctx.strokeStyle = 'rgba(232,228,222,0.30)';
+      ctx.lineWidth = 8;
+      ctx.beginPath(); ctx.moveTo(-296, hy - 60); ctx.lineTo(296, hy - 60); ctx.stroke();
+      /* carro + boquilla */
+      rrect(hx - 26, hy - 74, 52, 34, 6);
+      ctx.fillStyle = '#3a4150'; ctx.fill();
+      ctx.strokeStyle = 'rgba(255,255,255,0.2)'; ctx.lineWidth = 2; ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(hx - 9, hy - 40); ctx.lineTo(hx + 9, hy - 40); ctx.lineTo(hx, hy - 22);
+      ctx.closePath();
+      ctx.fillStyle = '#7d8798'; ctx.fill();
+      /* gota de PLA fundido */
+      ctx.beginPath(); ctx.arc(hx, hy - 14, 5, 0, Math.PI * 2);
+      ctx.fillStyle = '#ff8c50';
+      ctx.shadowColor = '#ff8c50'; ctx.shadowBlur = 16;
+      ctx.fill(); ctx.shadowBlur = 0;
+    }
+
+    ctx.fillStyle = `rgba(154,147,140,${0.8 * a2})`;
+    ctx.font = '400 15px "JetBrains Mono", monospace';
+    ctx.textAlign = 'center';
+    const pct = Math.round(eLayers * 100);
+    ctx.fillText(eLayers < 1 ? `PLA · 210 °C · capa ${Math.min(CAPAS, Math.floor(capasHechas) + 1)}/${CAPAS} · ${pct}%` : 'impresión terminada ✓ (a la primera, esta vez)', 0, 330);
+    ctx.restore();
+  }
+
+  /* ═══ ESCENA 3: CNC grabando un engranaje ═══ */
+  const a3 = fade(p, 0.52, 0.59, 0.72, 0.79);
+  if (a3 > 0) {
+    const ePanel = ease(seg(p, 0.53, 0.59));
+    const eCut   = seg(p, 0.58, 0.73);
+    ctx.save();
+    ctx.globalAlpha = a3;
+
+    /* tablero de madera con vetas */
+    const gw = ctx.createLinearGradient(-320, -220, 320, 220);
+    gw.addColorStop(0, '#6b5138'); gw.addColorStop(.5, '#7d6144'); gw.addColorStop(1, '#5d452f');
+    ctx.globalAlpha = a3 * ePanel;
+    rrect(-320, -220, 640, 440, 14);
+    ctx.fillStyle = gw; ctx.fill();
+    ctx.strokeStyle = 'rgba(0,0,0,0.3)'; ctx.lineWidth = 3; ctx.stroke();
+    ctx.strokeStyle = 'rgba(60,42,25,0.4)';
+    ctx.lineWidth = 2;
+    for (let i = 0; i < 7; i++) {
+      ctx.beginPath();
+      ctx.moveTo(-320, -170 + i * 62);
+      ctx.bezierCurveTo(-100, -190 + i * 62, 100, -150 + i * 62, 320, -175 + i * 62);
+      ctx.stroke();
+    }
+    ctx.globalAlpha = a3;
+
+    /* surco grabado */
+    if (eCut > 0) {
+      ctx.strokeStyle = 'rgba(35,24,14,0.9)';
+      ctx.lineWidth = 7;
+      ctx.lineJoin = 'round';
+      pathParcial(GEAR, eCut);
+      ctx.strokeStyle = 'rgba(255,190,120,0.25)';
+      ctx.lineWidth = 11;
+      pathParcial(GEAR, eCut);
+      /* taladro central */
+      if (eCut > 0.9) {
+        const eH = seg(eCut, 0.9, 1);
+        ctx.strokeStyle = 'rgba(35,24,14,0.9)';
+        ctx.lineWidth = 7;
+        ctx.beginPath(); ctx.arc(0, 0, 42 * eH, 0, Math.PI * 2); ctx.stroke();
+      }
+    }
+
+    /* fresadora sobre el punto de corte */
+    if (eCut > 0 && eCut < 1) {
+      const [bx, by] = puntoEn(GEAR, eCut);
+      ctx.strokeStyle = 'rgba(232,228,222,0.25)';
+      ctx.lineWidth = 8;
+      ctx.beginPath(); ctx.moveTo(bx, -300); ctx.lineTo(bx, by - 90); ctx.stroke();
+      const gm = ctx.createLinearGradient(bx - 22, by - 130, bx + 22, by - 40);
+      gm.addColorStop(0, '#565f72'); gm.addColorStop(1, '#2c323e');
+      rrect(bx - 22, by - 130, 44, 62, 8);
+      ctx.fillStyle = gm; ctx.fill();
+      /* broca girando (borrosa) */
+      ctx.fillStyle = `rgba(200,205,215,${0.6 + 0.4 * Math.sin(t / 16)})`;
+      ctx.fillRect(bx - 3.5, by - 68, 7, 62);
+      /* virutas */
+      for (let i = 0; i < 7; i++) {
+        const ang = Math.random() * Math.PI * 2, d = 12 + Math.random() * 42;
+        ctx.fillStyle = `rgba(196,160,110,${0.5 + Math.random() * 0.5})`;
+        ctx.fillRect(bx + Math.cos(ang) * d, by + Math.sin(ang) * d, 4, 3);
+      }
+    }
+
+    ctx.fillStyle = `rgba(154,147,140,${0.8 * a3})`;
+    ctx.font = '400 15px "JetBrains Mono", monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(eCut < 1 ? 'fresa 2 mm · 24.000 rpm · contrachapado 12 mm' : 'engranaje listo ✓ · las virutas las barro luego', 0, 330);
+    ctx.restore();
+  }
+
+  /* ═══ ESCENA 4: el taller conectado ═══ */
+  const a4 = ease(seg(p, 0.72, 0.80));
+  if (a4 > 0) {
+    const eNodos = seg(p, 0.78, 0.97);
+    ctx.save();
+    ctx.globalAlpha = a4;
+    const z = lerp(1.15, 0.92, a4);
+    ctx.scale(z, z);
+
+    /* engranaje protagonista girando despacio */
+    ctx.save();
+    ctx.translate(-140, 10);
+    ctx.rotate(t / 9000);
+    ctx.beginPath();
+    GEAR.forEach((pt, i) => i ? ctx.lineTo(pt[0] * 0.85, pt[1] * 0.85) : ctx.moveTo(pt[0] * 0.85, pt[1] * 0.85));
+    ctx.closePath();
+    ctx.fillStyle = '#7d6144';
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255,179,71,0.7)';
+    ctx.lineWidth = 3;
+    ctx.stroke();
+    ctx.beginPath(); ctx.arc(0, 0, 36, 0, Math.PI * 2);
+    ctx.fillStyle = '#0b0a0f'; ctx.fill(); ctx.stroke();
+    ctx.restore();
+
+    /* mini ESP32 conectado */
+    rrect(80, -90, 150, 200, 10);
+    ctx.fillStyle = '#141822'; ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.15)'; ctx.lineWidth = 2; ctx.stroke();
+    ctx.fillStyle = '#d4a94e';
+    for (let i = 0; i < 7; i++) { ctx.fillRect(72, -75 + i * 26, 10, 10); ctx.fillRect(228, -75 + i * 26, 10, 10); }
+    ctx.fillStyle = 'rgba(232,228,222,0.9)';
+    ctx.font = '700 20px "JetBrains Mono", monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('ESP32', 155, 0);
+    /* led azul latiendo */
+    ctx.beginPath(); ctx.arc(155, 45, 6, 0, Math.PI * 2);
+    const bl = 0.4 + 0.6 * Math.abs(Math.sin(t / 500));
+    ctx.fillStyle = `rgba(80,160,255,${bl})`;
+    ctx.shadowColor = 'rgba(80,160,255,1)'; ctx.shadowBlur = 16 * bl;
+    ctx.fill(); ctx.shadowBlur = 0;
+    /* cable engranaje ↔ esp32 */
+    ctx.strokeStyle = 'rgba(255,179,71,0.7)';
+    ctx.lineWidth = 5; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(-30, 10); ctx.quadraticCurveTo(25, 40, 80, 10); ctx.stroke();
+
+    /* anillo de LEDs WLED alrededor del engranaje */
+    for (let i = 0; i < 14; i++) {
+      const a = (i / 14) * Math.PI * 2 + t / 4000;
+      const hue = (i * 26 + t * 0.08) % 360;
+      ctx.beginPath();
+      ctx.arc(-140 + Math.cos(a) * 165, 10 + Math.sin(a) * 165, 9, 0, Math.PI * 2);
+      ctx.fillStyle = `hsl(${hue}, 100%, 58%)`;
+      ctx.shadowColor = `hsl(${hue}, 100%, 55%)`;
+      ctx.shadowBlur = 18;
+      ctx.fill();
+    }
+    ctx.shadowBlur = 0;
+
+    /* nodos del ecosistema */
+    NODOS.forEach((n, i) => {
+      const eN = ease(seg(eNodos, i * 0.13, i * 0.13 + 0.45));
+      if (eN <= 0) return;
+      ctx.globalAlpha = a4 * eN;
+      ctx.strokeStyle = 'rgba(78,205,196,0.35)';
+      ctx.lineWidth = 2.5;
+      pathParcial([[n[0], n[1]], [45, -20]], eN);
+      if (eN > 0.95) {
+        const f = (t / 1500 + i * 0.21) % 1;
+        ctx.beginPath();
+        ctx.arc(lerp(n[0], 45, f), lerp(n[1], -20, f), 6, 0, Math.PI * 2);
+        ctx.fillStyle = '#4ecdc4';
+        ctx.shadowColor = '#4ecdc4'; ctx.shadowBlur = 14;
+        ctx.fill(); ctx.shadowBlur = 0;
+      }
+      ctx.beginPath(); ctx.arc(n[0], n[1], 52, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(12,11,18,0.92)'; ctx.fill();
+      ctx.strokeStyle = 'rgba(255,255,255,0.18)'; ctx.lineWidth = 2; ctx.stroke();
+      ctx.font = '44px serif';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(n[2], n[0], n[1] + 4);
+      ctx.font = '700 19px "JetBrains Mono", monospace';
+      ctx.fillStyle = 'rgba(154,147,140,0.95)';
+      ctx.fillText(n[3], n[0], n[1] + 84);
+    });
+    ctx.globalAlpha = a4;
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillStyle = `rgba(154,147,140,${0.8 * a4})`;
+    ctx.font = '400 15px "JetBrains Mono", monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('el taller de AransDino · todo local, nada en nubes ajenas', 0, 350);
+    ctx.restore();
+  }
+
+  ctx.restore();
+}
+
+/* bucle: interpola el scroll para el efecto mantequilla */
+function loop(t) {
+  cur += (target - cur) * 0.11;
+  draw(cur, t);
+  barra.style.width = (target * 100).toFixed(2) + '%';
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+
+/* tarjetas de texto: fade/translate al entrar en viewport */
+const io = new IntersectionObserver(es => es.forEach(e =>
+  e.target.classList.toggle('on', e.isIntersecting)
+), { threshold: 0.35 });
+document.querySelectorAll('.paso').forEach(el => io.observe(el));
+
+console.log('%c⚡ El Lab — scroll-scrubbing sin frames JPG.\nMisma técnica que las landing de Apple (canvas sticky + progreso de scroll + rAF),\npero cada frame se dibuja al vuelo: boceto CAD → extrusión → impresión 3D → CNC → ESP32.', 'color:#4ecdc4');
+</script>
+
+</body>
+</html>
